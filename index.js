@@ -1,4 +1,5 @@
-const { addonBuilder, serveHTTP } = require("stremio-addon-sdk");
+const { addonBuilder, getRouter } = require("stremio-addon-sdk");
+const express = require("express");
 const manifest = require("./manifest");
 const { getStreams } = require("./providers");
 
@@ -8,7 +9,6 @@ builder.defineStreamHandler(async ({ type, id }) => {
     console.log(`[${new Date().toISOString()}] Request for streams: ${type} ${id}`);
     
     try {
-        // Parse ID (e.g., tt1234567:1:1 for series)
         const idParts = id.split(':');
         const imdbId = idParts[0];
         const season = idParts[1];
@@ -25,7 +25,19 @@ builder.defineStreamHandler(async ({ type, id }) => {
 });
 
 const addonInterface = builder.getInterface();
-serveHTTP(addonInterface, { port: process.env.PORT || 7000 });
+const router = getRouter(addonInterface);
 
-console.log(`NORGE-HUB version ${manifest.version} started`);
-console.log(`URL: http://localhost:7000/manifest.json`);
+const app = express();
+app.use(router);
+
+// For local development
+if (require.main === module) {
+    const port = process.env.PORT || 7000;
+    app.listen(port, () => {
+        console.log(`NORGE-HUB started locally on port ${port}`);
+        console.log(`Manifest URL: http://localhost:${port}/manifest.json`);
+    });
+}
+
+// Export for Vercel
+module.exports = app;
